@@ -20,3 +20,4 @@ model: &mod_gpt2
     n_head: 2
     want_pos_embeddings: False
     no_attention: True
+    custom_attn_func: "relu"

@@ -3,7 +3,7 @@ from transformers import GPT2Config, GPT2Model # type: ignore
 from torch import nn
 from .transformer import TransformerModel
 from typing import Optional, Tuple, Union
-
+import types
 from core import ContextModel
 
 from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
@@ -220,34 +220,37 @@ def forward_GPT2Model(
                 # Ensure that attention_mask is always on the same device as hidden_states
                 if not no_attention and attention_mask is not None:
                     attention_mask = attention_mask.to(hidden_states.device)
-                if isinstance(head_mask, torch.Tensor):
+                if not no_attention and isinstance(head_mask, torch.Tensor):
                     head_mask = head_mask.to(hidden_states.device)
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
+            #print(self.gradient_checkpointing)
+            #print(self.training)
             if self.gradient_checkpointing and self.training:
                 outputs = self._gradient_checkpointing_func(
                     block.__call__,
                     hidden_states,
                     None,
-                    attention_mask,
-                    head_mask[i],
+                    None if no_attention else attention_mask,
+                    None if no_attention else head_mask[i],
                     encoder_hidden_states,
-                    encoder_attention_mask,
+                    None if no_attention else encoder_attention_mask,
                     use_cache,
-                    output_attentions
+                    None if no_attention else output_attentions
                 )
             else:
                 outputs = block(
                     hidden_states,
                     layer_past=layer_past,
-                    attention_mask=attention_mask,
-                    head_mask=head_mask[i],
+                    attention_mask= None if no_attention else attention_mask,
+                    head_mask= None if no_attention else head_mask[i],
                     encoder_hidden_states=encoder_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
+                    encoder_attention_mask=None if no_attention else encoder_attention_mask,
                     use_cache=use_cache,
-                    output_attentions=output_attentions
+                    output_attentions=None if no_attention else output_attentions
                 )
+                #print(outputs)
 
             hidden_states = outputs[0]
             if use_cache is True:
@@ -309,10 +312,10 @@ def forward_GPT2Model(
 #
 # This is a way to modify layer architecture.
 
-def block_var_declare():
+def block_var_declare(self):
     pass
     
-def forward(
+def forward_block(
         self,
         hidden_states: Optional[Tuple[torch.FloatTensor]],
         layer_past: Optional[Tuple[torch.Tensor]] = None,
@@ -328,6 +331,8 @@ def forward(
         residual = hidden_states
 
         if not no_attention:
+            #for _ in range(1000):
+            #   print ("LKSDJFOSJFOIWJFIOWEJFOIWEJFOIEWJFOIWEJFOIWEFJOIWJ")
             hidden_states = self.ln_1(hidden_states)
     
             attn_outputs = self.attn(
@@ -338,6 +343,7 @@ def forward(
                 use_cache=use_cache,
                 output_attentions=output_attentions,
             )
+            #print(attn_outputs)
             attn_output = attn_outputs[0]  # output_attn: a, present, (attentions)
             outputs = attn_outputs[1:]
             # residual connection
@@ -363,7 +369,9 @@ def forward(
                 attn_output = cross_attn_outputs[0]
                 # residual connection
                 hidden_states = residual + attn_output
-                outputs = outputs + cross_attn_outputs[2:]  # add cross attentions if we output attention weights
+                outputs = outputs + cross_attn_outputs[2:] 
+            #print(outputs)
+            #print("NEWJROWFJWIOFJIO") # add cross attentions if we output attention weights
                 
             residual = hidden_states
         
@@ -377,18 +385,27 @@ def forward(
 
         if no_attention: 
             #Might cause errors if output of attention does not make OUTPUTS a list
-            outputs = [None, (None, None)]
-        if use_cache:
+            outputs = (hidden_states,)
+        elif use_cache:
+            #print(outputs)
             outputs = (hidden_states,) + outputs
+            #print("AFTERHIDDEN")
+            #print(outputs)
         else:
+            #print(outputs)
+            #print(outputs[1:])
             outputs = (hidden_states,) + outputs[1:]
-            
+            #print(outputs)
+            #print("AFTERHIDDEN")
+            #print(outputs.shape)
+        
+        
         
         return outputs  # hidden_states, present, (attentions, cross_attentions)
         
       
 class ModTransformerModel(ContextModel):
-    def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, **kwargs):
+    def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, custom_attn_func=None, **kwargs):
         super(ModTransformerModel, self).__init__()
         configuration = GPT2Config(
             n_positions=2 * n_positions,
@@ -402,10 +419,16 @@ class ModTransformerModel(ContextModel):
             no_attention=no_attention,
             want_pos_embeddings=want_pos_embeddings
         )
+        #print("WantPosEmbeddings" + str(want_pos_embeddings))
+        #print("No Attention" + str(no_attention))
 
         self.name = f"mod_gpt2_embd={n_embd}_layer={n_layer}_head={n_head}"
+        
+        if custom_attn_func == "relu":
+            self.custom_attn_func = relu_attn
+        elif custom_attn_func == "relu_causal":
+            self.custom_attn_func = relu_attn_causal
 
-        self.custom_attn_func = relu_attn
         self.context_length = n_positions
         self._n_dims = x_dim
         self._read_in = nn.Linear(x_dim, n_embd)
@@ -416,18 +439,27 @@ class ModTransformerModel(ContextModel):
         self._backbone = GPT2Model(configuration)
 
         #Allow for attention and pos embeddings
-        self._backbone.forward = functools.partial(forward_GPT2Model, self=self._backbone, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings)
-
-        print(type(list(self._backbone.children())))
+        self._backbone.forward = types.MethodType(functools.partial(forward_GPT2Model, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings), self._backbone)
         
-        attn_layers = list(self._backbone.children())[3]
-        attn_module_class = list(attn_layers[0].children())[1].__class__
+        for x in list(self._backbone.children())[3]:
+            x.forward = types.MethodType(functools.partial(forward_block, no_attention=no_attention), x)
+            block_var_declare(x)
 
-        for i in range(len(attn_layers)):
-            list(attn_layers[i].children())[1]._attn = self.custom_attn_func.__get__(
-                list(attn_layers[i].children())[1],
-                attn_module_class
-            )
+        #######DEBUGGING
+        # print([type(x) for x in self._backbone.children()])
+        # print("Additionally")
+        # print(list(self._backbone.children())[3])
+        ###########
+        
+        if self.custom_attn_func:
+            attn_layers = list(self._backbone.children())[3]
+            attn_module_class = list(attn_layers[0].children())[1].__class__
+
+            for i in range(len(attn_layers)):
+                list(attn_layers[i].children())[1]._attn = self.custom_attn_func.__get__(
+                    list(attn_layers[i].children())[1],
+                    attn_module_class
+                )
 
         self._read_out = nn.Linear(n_embd, 1)
 
