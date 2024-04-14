@@ -83,7 +83,7 @@ def relu_attn_causal(self, query, key, value, attention_mask=None, head_mask=Non
     return attn_output, attn_weights
       
 class ModTransformerModel(ContextModel):
-    def __init__(self, n_dims, n_positions, n_embd=128, n_layer=12, n_head=4, no_attention=False, want_pos_embeddings=True):
+    def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, **kwargs):
         super(TransformerModel, self).__init__()
         configuration = GPT2Config(
             n_positions=2 * n_positions,
@@ -94,10 +94,11 @@ class ModTransformerModel(ContextModel):
             embd_pdrop=0.0,
             attn_pdrop=0.0,
             use_cache=False,
-            no_attention=True,
-            want_pos_embeddings=False
+            no_attention=no_attention,
+            want_pos_embeddings=want_pos_embeddings
         )
-        self.name = f"gpt2_embd={n_embd}_layer={n_layer}_head={n_head}"
+
+        self.name = f"mod_gpt2_embd={n_embd}_layer={n_layer}_head={n_head}"
 
         self.context_length = n_positions
         self._n_dims = n_dims
