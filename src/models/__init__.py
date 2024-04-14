@@ -1,5 +1,6 @@
 from core import ContextModel
 from .transformer import TransformerModel
+from .transformer_modified import ModTransformerModel
 from .linear import (
     LeastSquaresModel,
     AveragingModel,
