@@ -1,8 +1,8 @@
 import torch
-from transformers import GPT2Config, GPT2Model
+from transformers import GPT2Config, GPT2Model # type: ignore
 from torch import nn
 
-from models.context_model import ContextModel
+from core import ContextModel
 
 def relu_attn(self, query, key, value, attention_mask=None, head_mask=None):
     attn_weights = torch.matmul(query, key.transpose(-1, -2))
