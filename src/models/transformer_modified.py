@@ -418,7 +418,8 @@ class ModTransformerModel(ContextModel):
         #Allow for attention and pos embeddings
         self._backbone.forward = functools.partial(forward_GPT2Model, self=self._backbone, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings)
 
-        print(type(self._backbone.children()))
+        print(type(list(self._backbone.children())))
+        
         attn_layers = list(self._backbone.children())[3]
         attn_module_class = list(attn_layers[0].children())[1].__class__
 
