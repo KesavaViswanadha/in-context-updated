@@ -11,3 +11,12 @@ model: &knn_3
 
 model: &least_squares
     type: least squares
+    
+model: &mod_gpt2
+    type: modgpt2
+    n_positions: 101
+    n_layer: 3
+    n_embd: 64
+    n_head: 2
+    want_pos_embeddings: False
+    no_attention: True
