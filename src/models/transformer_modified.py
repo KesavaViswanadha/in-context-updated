@@ -87,7 +87,7 @@ def relu_attn_causal(self, query, key, value, attention_mask=None, head_mask=Non
   
     return attn_output, attn_weights
 
-def forward_GPT2Config(
+def forward_GPT2Model(
         self,
         input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[Tuple[Tuple[torch.Tensor]]] = None,
@@ -105,7 +105,7 @@ def forward_GPT2Config(
         no_attention = False,
         want_pos_embeddings = True
     ) -> Union[Tuple, BaseModelOutputWithPastAndCrossAttentions]:
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
+        output_attentions = output_attentions if output_attentions is not None else (None if no_attention else self.config.output_attentions)
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
@@ -130,17 +130,22 @@ def forward_GPT2Config(
         if token_type_ids is not None:
             token_type_ids = token_type_ids.view(-1, input_shape[-1])
 
-        if past_key_values is None:
+        if not no_attention:
+            if past_key_values is None:
+                past_length = 0
+                past_key_values = tuple([None] * len(self.h))
+            else:
+                past_length = past_key_values[0][0].size(-2)
+        else:
             past_length = 0
             past_key_values = tuple([None] * len(self.h))
-        else:
-            past_length = past_key_values[0][0].size(-2)
+                
         if position_ids is None:
             position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=device)
             position_ids = position_ids.unsqueeze(0)
 
         # GPT2Attention mask.
-        if attention_mask is not None and not no_attention:
+        if not no_attention and attention_mask is not None:
             if batch_size <= 0:
                 raise ValueError("batch_size has to be defined and > 0")
             attention_mask = attention_mask.view(batch_size, -1)
@@ -161,7 +166,7 @@ def forward_GPT2Config(
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
-        if self.config.add_cross_attention and encoder_hidden_states is not None and not no_attention:
+        if not no_attention and self.config.add_cross_attention and encoder_hidden_states is not None:
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.size()
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
@@ -174,7 +179,8 @@ def forward_GPT2Config(
         # 1.0 in head_mask indicate we keep the head
         # attention_probs has shape bsz x n_heads x N x N
         # head_mask has shape n_layer x batch x n_heads x N x N
-        head_mask = self.get_head_mask(head_mask, self.config.n_layer)
+        if not no_attention:
+            head_mask = self.get_head_mask(head_mask, self.config.n_layer)
 
         if inputs_embeds is None:
             inputs_embeds = self.wte(input_ids)
@@ -201,8 +207,8 @@ def forward_GPT2Config(
                 use_cache = False
 
         presents = () if use_cache else None
-        all_self_attentions = () if output_attentions else None
-        all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
+        all_self_attentions = () if output_attentions and not no_attention else None
+        all_cross_attentions = () if output_attentions and not no_attention and self.config.add_cross_attention else None
         all_hidden_states = () if output_hidden_states else None
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
             # Model parallel
@@ -212,7 +218,7 @@ def forward_GPT2Config(
                 if layer_past is not None:
                     layer_past = tuple(past_state.to(hidden_states.device) for past_state in layer_past)
                 # Ensure that attention_mask is always on the same device as hidden_states
-                if attention_mask is not None:
+                if not no_attention and attention_mask is not None:
                     attention_mask = attention_mask.to(hidden_states.device)
                 if isinstance(head_mask, torch.Tensor):
                     head_mask = head_mask.to(hidden_states.device)
@@ -247,7 +253,7 @@ def forward_GPT2Config(
             if use_cache is True:
                 presents = presents + (outputs[1],)
 
-            if output_attentions:
+            if output_attentions and not no_attention:
                 all_self_attentions = all_self_attentions + (outputs[2 if use_cache else 1],)
                 if self.config.add_cross_attention:
                     all_cross_attentions = all_cross_attentions + (outputs[3 if use_cache else 2],)
@@ -266,25 +272,13 @@ def forward_GPT2Config(
             all_hidden_states = all_hidden_states + (hidden_states,)
 
         if not return_dict:
-            ret_val = []
-            if not no_attention:
-                return tuple(
-                    v
-                    for v in [hidden_states, presents, all_hidden_states, all_self_attentions, all_cross_attentions]
-                    if v is not None
-                )
-            else:
-                presents = None
-                ret_val = []
-                this_return_dict_lst = [hidden_states, presents, all_hidden_states, all_self_attentions, all_cross_attentions]
-                for v in range(len(this_return_dict_lst)):
-                    if v == 1:
-                        ret_val.append(this_return_dict_lst[v])
-                    elif this_return_dict_lst[v] is not None:
-                        ret_val.append(this_return_dict_lst[v])
-                        
-                return tuple(ret_val)
+            return tuple(
+                v
+                for v in [hidden_states, presents, all_hidden_states, all_self_attentions, all_cross_attentions]
+                if v is not None
+            )
 
+        
         return BaseModelOutputWithPastAndCrossAttentions(
             last_hidden_state=hidden_states,
             past_key_values=presents,
@@ -292,6 +286,7 @@ def forward_GPT2Config(
             attentions=all_self_attentions,
             cross_attentions=all_cross_attentions,
         )
+
 
 
       
@@ -324,7 +319,7 @@ class ModTransformerModel(ContextModel):
         self._backbone = GPT2Model(configuration)
 
         #Allow for attention and pos embeddings
-        self._backbone.forward = functools.partial(forward_GPT2Config, self=self._backbone, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings)
+        self._backbone.forward = functools.partial(forward_GPT2Model, self=self._backbone, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings)
 
         print(type(self._backbone.children()))
         attn_layers = list(self._backbone.children())[3]
