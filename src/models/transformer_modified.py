@@ -2,9 +2,11 @@ import torch
 from transformers import GPT2Config, GPT2Model # type: ignore
 from torch import nn
 from .transformer import TransformerModel
+from typing import Optional, Tuple, Union
 
 from core import ContextModel
 
+from transformers.modeling_outputs import BaseModelOutputWithPastAndCrossAttentions
 import functools
 
 def relu_attn(self, query, key, value, attention_mask=None, head_mask=None):
@@ -85,7 +87,7 @@ def relu_attn_causal(self, query, key, value, attention_mask=None, head_mask=Non
   
     return attn_output, attn_weights
 
-    def forward_GPT2Config(
+def forward_GPT2Config(
         self,
         input_ids: Optional[torch.LongTensor] = None,
         past_key_values: Optional[Tuple[Tuple[torch.Tensor]]] = None,
@@ -321,7 +323,8 @@ class ModTransformerModel(ContextModel):
         #Patch that i don't really want to go with in the end
         self._backbone = GPT2Model(configuration)
 
-        self._backbone.forward = functools.partial(forward_GPT2Config, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings)
+        #Allow for attention and pos embeddings
+        self._backbone.forward = functools.partial(forward_GPT2Config, self=self._backbone, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings)
 
         print(type(self._backbone.children()))
         attn_layers = list(self._backbone.children())[3]
