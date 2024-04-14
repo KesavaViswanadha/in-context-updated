@@ -18,6 +18,6 @@ model: &mod_gpt2
     n_layer: 3
     n_embd: 64
     n_head: 2
-    want_pos_embeddings: False
-    no_attention: True
-    custom_attn_func: "relu"
+    want_pos_embeddings: True
+    no_attention: False
+    custom_attn_func: "ndd"

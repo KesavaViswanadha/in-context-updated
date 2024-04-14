@@ -428,6 +428,8 @@ class ModTransformerModel(ContextModel):
             self.custom_attn_func = relu_attn
         elif custom_attn_func == "relu_causal":
             self.custom_attn_func = relu_attn_causal
+        else:
+            self.custom_attn_func = None
 
         self.context_length = n_positions
         self._n_dims = x_dim
