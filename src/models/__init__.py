@@ -19,7 +19,8 @@ MODELS: dict[str, type[ContextModel]] = {
     "lasso"         : LassoModel,
     "grad mlp"      : GDModel,
     "decision tree" : DecisionTreeModel,
-    "xgboost"       : XGBoostModel
+    "xgboost"       : XGBoostModel,
+    "modgpt2"       : ModTransformerModel
 }
 
 __all__ = [
