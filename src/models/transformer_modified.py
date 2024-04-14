@@ -1,6 +1,7 @@
 import torch
 from transformers import GPT2Config, GPT2Model # type: ignore
 from torch import nn
+from .transformer import TransformerModel
 
 from core import ContextModel
 
@@ -84,7 +85,7 @@ def relu_attn_causal(self, query, key, value, attention_mask=None, head_mask=Non
       
 class ModTransformerModel(ContextModel):
     def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, **kwargs):
-        super(TransformerModel, self).__init__()
+        super(ModTransformerModel, self).__init__()
         configuration = GPT2Config(
             n_positions=2 * n_positions,
             n_embd=n_embd,
@@ -101,8 +102,8 @@ class ModTransformerModel(ContextModel):
         self.name = f"mod_gpt2_embd={n_embd}_layer={n_layer}_head={n_head}"
 
         self.context_length = n_positions
-        self._n_dims = n_dims
-        self._read_in = nn.Linear(n_dims, n_embd)
+        self._n_dims = x_dim
+        self._read_in = nn.Linear(x_dim, n_embd)
         self._backbone = GPT2Model(configuration, attn_func=relu_attn)
         self._read_out = nn.Linear(n_embd, 1)
 
