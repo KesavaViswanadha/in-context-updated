@@ -104,7 +104,21 @@ class ModTransformerModel(ContextModel):
         self.context_length = n_positions
         self._n_dims = x_dim
         self._read_in = nn.Linear(x_dim, n_embd)
-        self._backbone = GPT2Model(configuration, attn_func=relu_attn)
+      
+        #self._backbone = GPT2Model(configuration, attn_func=relu_attn)
+
+        #Patch that i don't really want to go with in the end
+        self._backbone = GPT2Model(configuration)
+
+        attn_layers = list(self._backbone.children())[3]
+        attn_module_class = list(attn_layers[0].children())[1].__class__
+
+        for i in range(len(attn_layers)):
+            list(attn_layers[i].children())[1]._attn = relu_attn.__get__(
+                list(attn_layers[i].children())[1],
+                attn_module_class
+            )
+
         self._read_out = nn.Linear(n_embd, 1)
 
     def forward(self, xs, ys):
