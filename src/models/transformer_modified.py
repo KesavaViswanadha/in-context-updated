@@ -1,5 +1,5 @@
 import torch
-from transformers import GPT2Config, GPT2Model # type: ignore
+from transformers import GPT2Config, GPT2Model, MambaBlock, MambaRMSNorm, MambaConfig, MambaPreTrainedModel, MambaModel # type: ignore
 from torch import nn
 from .transformer import TransformerModel
 from typing import Optional, Tuple, Union
@@ -312,7 +312,13 @@ def forward_GPT2Model(
 #
 # This is a way to modify layer architecture.
 
-def block_var_declare(self):
+#no cache
+def block_var_declare(self, this_mamba_model):
+    self.norm_f = this_mamba_model.norm_f
+    self.mamba_blocks = list(this_mamba_model.layers)
+
+    
+    
     pass
     
 def forward_block(
@@ -327,9 +333,17 @@ def forward_block(
         output_attentions: Optional[bool] = False,
         no_attention = False
     ) -> Union[Tuple[torch.Tensor], Optional[Tuple[torch.Tensor, Tuple[torch.FloatTensor, ...]]]]:
+
+        #Utilizing Mamba...
+        for mb in self.mamba_blocks:
+            hidden_states = mb(hidden_states)
+
+        hidden_states = self.norm_f(hidden_states)
+        
+        #The above was all an addition to the vanilla transformer
         
         residual = hidden_states
-
+        
         if not no_attention:
             #for _ in range(1000):
             #   print ("LKSDJFOSJFOIWJFIOWEJFOIWEJFOIEWJFOIWEJFOIWEFJOIWJ")
@@ -376,11 +390,9 @@ def forward_block(
             residual = hidden_states
         
         hidden_states = self.ln_2(hidden_states)
-        # if not use_mamba:
+
         feed_forward_hidden_states = self.mlp(hidden_states)
-        # else:
-        #     feed_forward_hidden_states = self.MAMBA.forward(hidden_states)
-        # residual connection
+
         hidden_states = residual + feed_forward_hidden_states
 
         if no_attention: 
@@ -407,7 +419,7 @@ def forward_block(
 class ModTransformerModel(ContextModel):
     def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, custom_attn_func=None, **kwargs):
         super(ModTransformerModel, self).__init__()
-        configuration = GPT2Config(
+        gpt_configuration = GPT2Config(
             n_positions=2 * n_positions,
             n_embd=n_embd,
             n_layer=n_layer,
@@ -415,10 +427,18 @@ class ModTransformerModel(ContextModel):
             resid_pdrop=0.0,
             embd_pdrop=0.0,
             attn_pdrop=0.0,
-            use_cache=False,
-            no_attention=no_attention,
-            want_pos_embeddings=want_pos_embeddings
+            use_cache=False
         )
+
+        mamba_configuration = MambaConfig(
+            vocab_size=gpt_configuration.vocab_size,
+            hidden_size=n_embd,
+            layer_norm_epsilon=gpt_configuration.layer_norm_epsilon
+            num_hidden_layers=1,
+            use_cache=gpt_configuration.use_cache,
+            use_return_dict=gpt_configuration.use_return_dict
+        )
+
         #print("WantPosEmbeddings" + str(want_pos_embeddings))
         #print("No Attention" + str(no_attention))
 
@@ -438,14 +458,14 @@ class ModTransformerModel(ContextModel):
         #self._backbone = GPT2Model(configuration, attn_func=relu_attn)
 
         #Patch that i don't really want to go with in the end
-        self._backbone = GPT2Model(configuration)
+        self._backbone = GPT2Model(gpt_configuration)
 
         #Allow for attention and pos embeddings
         self._backbone.forward = types.MethodType(functools.partial(forward_GPT2Model, no_attention=no_attention, want_pos_embeddings=want_pos_embeddings), self._backbone)
         
         for x in list(self._backbone.children())[3]:
             x.forward = types.MethodType(functools.partial(forward_block, no_attention=no_attention), x)
-            block_var_declare(x)
+            block_var_declare(x, MambaModel(mamba_configuration))
 
         #######DEBUGGING
         # print([type(x) for x in self._backbone.children()])
