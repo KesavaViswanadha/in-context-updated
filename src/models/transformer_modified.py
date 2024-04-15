@@ -433,7 +433,7 @@ class ModTransformerModel(ContextModel):
         mamba_configuration = MambaConfig(
             vocab_size=gpt_configuration.vocab_size,
             hidden_size=n_embd,
-            layer_norm_epsilon=gpt_configuration.layer_norm_epsilon
+            layer_norm_epsilon=gpt_configuration.layer_norm_epsilon,
             num_hidden_layers=1,
             use_cache=gpt_configuration.use_cache,
             use_return_dict=gpt_configuration.use_return_dict
