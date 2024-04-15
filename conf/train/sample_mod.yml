@@ -20,5 +20,5 @@ x_dim: !curriculum
     step_len: 5000
 x_dist:
     type: normal
-model: *mod_gpt2
+model: *mambafirstgpt2_no_pos_embed
 baseline_models: [*knn_3, *least_squares]
