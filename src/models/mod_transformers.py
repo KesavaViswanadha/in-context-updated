@@ -404,9 +404,9 @@ def forward_block(
         return outputs  # hidden_states, present, (attentions, cross_attentions)
         
       
-class ModTransformersModel(ContextModel):
+class ModTransformerModel(ContextModel):
     def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, custom_attn_func=None, num_mamba_layers=1, num_mamba_instances=2, **kwargs):
-        super(ModTransformersModel, self).__init__()
+        super(ModTransformerModel, self).__init__()
         gpt_configuration = GPT2Config(
             n_positions=2 * n_positions,
             n_embd=n_embd,
