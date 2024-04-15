@@ -2,6 +2,7 @@ from core import ContextModel
 from .transformer import TransformerModel
 from .mamba_no_attention import MambaNoAttentionModel
 from .mambafirstformer import MambaFirstGPT2TransformerModel
+from .mambaformer import MambaformerModel
 from .linear import (
     LeastSquaresModel,
     AveragingModel,
@@ -23,7 +24,8 @@ MODELS: dict[str, type[ContextModel]] = {
     "decision tree" : DecisionTreeModel,
     "xgboost"       : XGBoostModel,
     "mambafirstgpt2"       : MambaFirstGPT2TransformerModel,
-    "mambaonly"     : MambaNoAttentionModel
+    "mambaonly"     : MambaNoAttentionModel,
+    "mambaformer"   : MambaformerModel
 }
 
 __all__ = [
