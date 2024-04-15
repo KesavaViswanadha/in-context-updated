@@ -3,6 +3,7 @@ from .transformer import TransformerModel
 from .mamba_no_attention import MambaNoAttentionModel
 from .mambafirstformer import MambaFirstGPT2TransformerModel
 from .mambaformer import MambaformerModel
+from .mod_transformers import ModTransformerModel
 from .linear import (
     LeastSquaresModel,
     AveragingModel,
@@ -25,7 +26,8 @@ MODELS: dict[str, type[ContextModel]] = {
     "xgboost"       : XGBoostModel,
     "mambafirstgpt2"       : MambaFirstGPT2TransformerModel,
     "mambaonly"     : MambaNoAttentionModel,
-    "mambaformer_classic"   : MambaformerModel
+    "mambaformer_classic"   : MambaformerModel,
+    "mod_transformer"     : ModTransformerModel
 }
 
 __all__ = [
