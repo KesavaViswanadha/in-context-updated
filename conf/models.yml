@@ -20,6 +20,7 @@ model: &mambafirstgpt2_no_pos_embed
     n_head: 2
     want_pos_embeddings: False
     no_attention: False
+    num_mamba_layers: 1
     custom_attn_func: "vanilla"
 
 model: &mambafirstgpt2_pos_embed
@@ -30,6 +31,7 @@ model: &mambafirstgpt2_pos_embed
     n_head: 2
     want_pos_embeddings: True
     no_attention: False
+    num_mamba_layers: 4
     custom_attn_func: "vanilla"
 
 model: &mambaonly_pos_embed
@@ -40,6 +42,7 @@ model: &mambaonly_pos_embed
     n_head: 2
     want_pos_embeddings: True
     no_attention: True
+    num_mamba_layers: 10
     custom_attn_func: "vanilla"
 
 model: &mambaonly_no_pos_embed
@@ -50,4 +53,5 @@ model: &mambaonly_no_pos_embed
     n_head: 2
     want_pos_embeddings: False
     no_attention: True
+    num_mamba_layers: 5
     custom_attn_func: "vanilla"
