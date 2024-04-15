@@ -415,7 +415,7 @@ def forward_block(
         
       
 class MambaNoAttentionModel(ContextModel):
-    def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, custom_attn_func=None, **kwargs):
+    def __init__(self, x_dim, n_positions, n_embd=128, n_layer=12, n_head=4, want_pos_embeddings=True, no_attention=False, custom_attn_func=None, num_mamba_layers=1, **kwargs):
         super(MambaNoAttentionModel, self).__init__()
         gpt_configuration = GPT2Config(
             n_positions=2 * n_positions,
