@@ -1,5 +1,5 @@
 import torch
-from transformers import GPT2Config, GPT2Model, MambaBlock, MambaRMSNorm, MambaConfig, MambaPreTrainedModel, MambaModel # type: ignore
+from transformers import GPT2Config, GPT2Model, MambaConfig, MambaPreTrainedModel, MambaModel # type: ignore
 from torch import nn
 from .transformer import TransformerModel
 from typing import Optional, Tuple, Union
@@ -316,10 +316,6 @@ def forward_GPT2Model(
 def block_var_declare(self, this_mamba_model):
     self.norm_f = this_mamba_model.norm_f
     self.mamba_blocks = list(this_mamba_model.layers)
-
-    
-    
-    pass
     
 def forward_block(
         self,
@@ -430,13 +426,14 @@ class ModTransformerModel(ContextModel):
             use_cache=False
         )
 
+        #can't set return dict parameter in mambaconfig for some reason...
+
         mamba_configuration = MambaConfig(
             vocab_size=gpt_configuration.vocab_size,
             hidden_size=n_embd,
             layer_norm_epsilon=gpt_configuration.layer_norm_epsilon,
             num_hidden_layers=1,
-            use_cache=gpt_configuration.use_cache,
-            use_return_dict=gpt_configuration.use_return_dict
+            use_cache=gpt_configuration.use_cache
         )
 
         #print("WantPosEmbeddings" + str(want_pos_embeddings))
